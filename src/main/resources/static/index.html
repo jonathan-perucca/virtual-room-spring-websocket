@@ -7,19 +7,60 @@
     <script src="sockjs-0.3.4.js"></script>
     <script src="stomp.js"></script>
     <script type="text/javascript">
-        var stompClient = null;
+        var stompClientMessage = null;
+        var stompClientParticipant = null;
+        var participantsMemory = [];
+
+        function refreshElementById(id){
+            document.getElementById(id).innerHTML = '';
+        }
 
         function setConnected(connected) {
             document.getElementById('connect').disabled = connected;
             document.getElementById('disconnect').disabled = !connected;
             document.getElementById('conversationDiv').style.visibility = connected ? 'visible' : 'hidden';
-            document.getElementById('response').innerHTML = '';
+            document.getElementById('credentialDiv').style.visibility = connected ? 'hidden' : 'visible';
+            refreshElementById('response');
+            refreshElementById('participants');
         }
 
-        function connect() {
-            var socket = new SockJS('/message');
-            stompClient = Stomp.over(socket);
-            stompClient.connect({}, function(frame) {
+        function connectVroom() {
+            var socketMessage = new SockJS('/message');
+            var socketParticipant = new SockJS('/participant');
+            stompClientMessage = Stomp.over(socketMessage);
+            stompClientParticipant = Stomp.over(socketParticipant);
+
+            connectMessages();
+            connectParticipants();
+        }
+
+        function connectParticipants() {
+            stompClientParticipant.connect({}, function(frame) {
+                $.ajax({
+                    type : 'GET',
+                    url : '/api/participant',
+                    success : function(participants) {
+                        for(var index = 0, length = participants.length; index < length; index++) {
+                            var participant = participants[index];
+
+                            console.log("participant retrieved : " + participant.login);
+
+                            showParticipant(participant);
+                        }
+                    }
+                });
+                setConnected(true);
+                sendParticipant();
+                console.log('Connected: ' + frame);
+                stompClientParticipant.subscribe('/topic/participants', function(content){
+                    var participant = JSON.parse(content.body);
+                    showParticipant(participant);
+                });
+            });
+        }
+
+        function connectMessages() {
+            stompClientMessage.connect({}, function(frame) {
                 $.ajax({
                     type : 'GET',
                     url : '/api/message',
@@ -31,23 +72,31 @@
                 });
                 setConnected(true);
                 console.log('Connected: ' + frame);
-                stompClient.subscribe('/topic/messages', function(content){
+                stompClientMessage.subscribe('/topic/messages', function(content){
                     showMessage(JSON.parse(content.body).content);
                 });
             });
         }
 
         function disconnect() {
-            if (stompClient != null) {
-                stompClient.disconnect();
+            if (stompClientMessage != null) {
+                stompClientMessage.disconnect();
+            }
+            if (stompClientParticipant != null) {
+                stompClientParticipant.disconnect();
             }
             setConnected(false);
             console.log("Disconnected");
         }
 
+        function sendParticipant() {
+            var nickname = document.getElementById('nickname').value;
+            stompClientParticipant.send("/app/participant", {}, JSON.stringify({ 'login' : nickname}));
+        }
+
         function sendMessage() {
             var content = document.getElementById('content').value;
-            stompClient.send("/app/message", {}, JSON.stringify({ 'content': content }));
+            stompClientMessage.send("/app/message", {}, JSON.stringify({ 'content': content }));
         }
 
         function showMessage(content) {
@@ -57,6 +106,27 @@
             p.appendChild(document.createTextNode(content));
             response.appendChild(p);
         }
+
+        function showParticipant(participant) {
+            if(participantsMemory.indexOf(participant.login) == -1) {
+                participantsMemory.push(participant.login);
+            }
+
+            refreshElementById('participants');
+
+            rebuildParticipantList();
+        }
+
+        function rebuildParticipantList() {
+            for(var index = 0, length = participantsMemory.length; index < length; index++) {
+                var login = participantsMemory[index];
+                $("#participants").append($('<p>')
+                                            .text(login)
+                                            .css({'word-wrap': 'break-word'}
+                                             )
+                                         );
+            }
+        }
     </script>
 </head>
 <body onload="disconnect()">
@@ -64,13 +134,22 @@
     Javascript and reload this page!</h2></noscript>
 <div>
     <div>
-        <button id="connect" onclick="connect();">Connect</button>
+        <div id="credentialDiv">
+            <label>Your nickname?</label> <input type="text" id="nickname">
+        </div>
+        <button id="connect" onclick="connectVroom();">Join</button>
         <button id="disconnect" disabled="disabled" onclick="disconnect();">Disconnect</button>
     </div>
     <div id="conversationDiv">
         <label>Your content?</label><input type="text" id="content" />
         <button id="sendMessage" onclick="sendMessage();">Send</button>
         <p id="response"></p>
+
+        <br/>
+        ****************
+        <br/>
+
+        <p id="participants"></p>
     </div>
 </div>
 </body>
