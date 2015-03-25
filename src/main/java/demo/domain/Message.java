@@ -1,4 +1,4 @@
-package demo;
+package demo.domain;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -6,24 +6,24 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 
 @Entity
-public class ChatMessage {
+public class Message {
 
     @Id
     @GeneratedValue
     private Long id;
 
     @Column
-    private String message;
+    private String content;
 
-    public ChatMessage() {
+    public Message() {
     }
 
-    private ChatMessage(Builder builder) {
+    private Message(Builder builder) {
         setId(builder.id);
-        setMessage(builder.message);
+        setContent(builder.content);
     }
 
-    public static Builder newChatMessage() {
+    public static Builder newMessage() {
         return new Builder();
     }
 
@@ -35,18 +35,18 @@ public class ChatMessage {
         this.id = id;
     }
 
-    public String getMessage() {
-        return message;
+    public String getContent() {
+        return content;
     }
 
-    public void setMessage(String message) {
-        this.message = message;
+    public void setContent(String content) {
+        this.content = content;
     }
 
 
     public static final class Builder {
         private Long id;
-        private String message;
+        private String content;
 
         private Builder() {
         }
@@ -56,13 +56,13 @@ public class ChatMessage {
             return this;
         }
 
-        public Builder withMessage(String message) {
-            this.message = message;
+        public Builder withContent(String content) {
+            this.content = content;
             return this;
         }
 
-        public ChatMessage build() {
-            return new ChatMessage(this);
+        public Message build() {
+            return new Message(this);
         }
     }
 }
