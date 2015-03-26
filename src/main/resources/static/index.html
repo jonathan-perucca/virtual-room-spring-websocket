@@ -61,17 +61,20 @@
 
         function connectMessages() {
             stompClientMessage.connect({}, function(frame) {
-                $.ajax({
-                    type : 'GET',
-                    url : '/api/message',
-                    success : function(messages) {
-                        for(var index = 0, length = messages.length; index < length; index++) {
-                            showMessage(messages[index].content);
-                        }
-                    }
-                });
                 setConnected(true);
                 console.log('Connected: ' + frame);
+                // application destination subscription for initial messages list if it exists
+                stompClientMessage.subscribe('/app/messages', function(content){
+                    console.log('Received on subscription : ' + JSON.parse(content.body));
+                    var messages = JSON.parse(content.body);
+
+                    for(var index = 0, length = messages.length; index < length; index++) {
+                        console.log('Parsing message retrieved : ' + messages[index]);
+                        showMessage(messages[index].content);
+                    }
+
+                });
+                // broker destination subscription for broadcasted messages
                 stompClientMessage.subscribe('/topic/messages', function(content){
                     showMessage(JSON.parse(content.body).content);
                 });
@@ -100,6 +103,7 @@
         }
 
         function showMessage(content) {
+            console.log("showMessage : " + content);
             var response = document.getElementById('response');
             var p = document.createElement('p');
             p.style.wordWrap = 'break-word';
