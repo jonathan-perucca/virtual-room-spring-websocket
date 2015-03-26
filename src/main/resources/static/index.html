@@ -36,24 +36,22 @@
 
         function connectParticipants() {
             stompClientParticipant.connect({}, function(frame) {
-                $.ajax({
-                    type : 'GET',
-                    url : '/api/participant',
-                    success : function(participants) {
-                        for(var index = 0, length = participants.length; index < length; index++) {
-                            var participant = participants[index];
-
-                            console.log("participant retrieved : " + participant.login);
-
-                            showParticipant(participant);
-                        }
-                    }
-                });
                 setConnected(true);
                 sendParticipant();
                 console.log('Connected: ' + frame);
+
+                stompClientParticipant.subscribe('/app/participants', function(content) {
+                    var participants = JSON.parse(content.body);
+                    console.log('retrieved on subscription participants : ' + participants);
+
+                    for(var index = 0, length = participants.length; index < length; index++) {
+                        showParticipant(participants[index]);
+                    }
+                });
+
                 stompClientParticipant.subscribe('/topic/participants', function(content){
                     var participant = JSON.parse(content.body);
+
                     showParticipant(participant);
                 });
             });
@@ -63,16 +61,14 @@
             stompClientMessage.connect({}, function(frame) {
                 setConnected(true);
                 console.log('Connected: ' + frame);
+
                 // application destination subscription for initial messages list if it exists
                 stompClientMessage.subscribe('/app/messages', function(content){
-                    console.log('Received on subscription : ' + JSON.parse(content.body));
                     var messages = JSON.parse(content.body);
 
                     for(var index = 0, length = messages.length; index < length; index++) {
-                        console.log('Parsing message retrieved : ' + messages[index]);
                         showMessage(messages[index].content);
                     }
-
                 });
                 // broker destination subscription for broadcasted messages
                 stompClientMessage.subscribe('/topic/messages', function(content){
@@ -112,6 +108,7 @@
         }
 
         function showParticipant(participant) {
+            console.log('showParticipant : ' + participant);
             if(participantsMemory.indexOf(participant.login) == -1) {
                 participantsMemory.push(participant.login);
             }
